@@ -1,31 +1,23 @@
 import pyaudio
 import numpy as np
 import aubio
-import time
+import tkinter as tk
 
-# Constants
+
+# ----- Constants -----
+
+
 BUFFER_SIZE = 8192
 SAMPLE_RATE = 44100
-CHANNELS = 1
 FORMAT = pyaudio.paFloat32
 
-# Setup
-p = pyaudio.PyAudio()
-stream = p.open(format=FORMAT,
-                channels=CHANNELS,
-                rate=SAMPLE_RATE,
-                input=True,
-                frames_per_buffer=BUFFER_SIZE)
 
-# Initialize pitch detection
-pitch_detector = aubio.pitch("default", BUFFER_SIZE*2, BUFFER_SIZE, SAMPLE_RATE)
-pitch_detector.set_unit("Hz")
-pitch_detector.set_silence(-40)
+# ----- Tools: sound processing -----
 
-# Frequency to note
+
 def freq_to_note(freq):
-    A4 = 440.0
     if freq <= 0: return None
+    A4 = 440.0
     semitones = int(round(12 * np.log2(freq / A4)))
     note_index = (semitones + 9) % 12
     octave = 4 + ((semitones + 9) // 12)
@@ -33,31 +25,55 @@ def freq_to_note(freq):
              'F#', 'G', 'G#', 'A', 'A#', 'B']
     return f"{notes[note_index]}{octave}"
 
-# Real-time loop
-print("🎵 Listening... Play a note!")
 
-last_note = None
-note_stable_count = 0
+# ----- GUI -----
 
-try:
-    while True:
-        audio_data = np.frombuffer(stream.read(BUFFER_SIZE, exception_on_overflow=False), dtype=np.float32)
-        pitch = pitch_detector(audio_data)[0]
-        note = freq_to_note(pitch)
 
-        # Print note only if it is stable for a few frames
-        if note and note != last_note:
-            last_note = note
-            note_stable_count = 1
-        elif note == last_note:
-            note_stable_count += 1
+root = tk.Tk()
+root.title("🎵 Real-Time Note Detector")
+root.geometry("300x200")
 
-        if note and note_stable_count == 3:
-            print(f"🎶 Note Detected: {note}")
-            note_stable_count = 0  # Reset so it prints again if note remains
+note_var = tk.StringVar()
+freq_var = tk.StringVar()
+conf_var = tk.StringVar()
 
-except KeyboardInterrupt:
-    print("\n🎤 Stopping...")
-    stream.stop_stream()
-    stream.close()
-    p.terminate()
+tk.Label(root, text="Detected Note", font=("Helvetica", 16)).pack(pady=10)
+tk.Label(root, textvariable=note_var, font=("Helvetica", 32, "bold")).pack()
+
+tk.Label(root, textvariable=freq_var, font=("Helvetica", 12)).pack()
+tk.Label(root, textvariable=conf_var, font=("Helvetica", 10)).pack()
+
+
+# ----- Streaming: setup -----
+
+
+p = pyaudio.PyAudio()
+stream = p.open(format=FORMAT, channels=1, rate=SAMPLE_RATE, input=True, frames_per_buffer=BUFFER_SIZE)
+pitch_detector = aubio.pitch("default", BUFFER_SIZE*2, BUFFER_SIZE, SAMPLE_RATE)
+pitch_detector.set_unit("Hz")
+pitch_detector.set_silence(-40)
+
+
+# ----- Streaming: loop -----
+
+
+def update_pitch():
+    audio_data = np.frombuffer(stream.read(BUFFER_SIZE, exception_on_overflow=False), dtype=np.float32)
+    pitch = pitch_detector(audio_data)[0]
+    confidence = pitch_detector.get_confidence()
+
+    note = freq_to_note(pitch)
+
+    if note:
+        note_var.set(note)
+        freq_var.set(f"Freq: {pitch:.1f} Hz")
+        conf_var.set(f"Confidence: {confidence:.2f}")
+    else:
+        note_var.set("—")
+        freq_var.set("Freq: —")
+        conf_var.set("Confidence: —")
+
+    root.after(50, update_pitch)
+
+update_pitch()
+root.mainloop()
