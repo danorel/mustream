@@ -11,6 +11,7 @@ from scipy.signal import butter, lfilter
 
 # ----- Constants -----
 
+
 BUFFER_SIZE = 8192
 SAMPLE_RATE = 44100
 
@@ -94,7 +95,7 @@ freq_var = tk.StringVar()
 conf_var = tk.StringVar()
 
 
-# ----- GUI: Chord Block -----
+# ----- GUI: chord display -----
 
 
 chord_frame = tk.Frame(root, bg=root["bg"])
@@ -110,12 +111,14 @@ tk.Label(chord_frame, textvariable=freq_var, bg=root["bg"]).pack()
 tk.Label(chord_frame, textvariable=conf_var, bg=root["bg"]).pack()
 
 
-# ----- GUI: separator line -----
+# ----- GUI: separator -----
+
+
 separator = ttk.Separator(root, orient="horizontal")
 separator.pack(fill="x", pady=10)
 
 
-# ----- GUI: chart block -----
+# ----- GUI: audio waveform display -----
 
 
 chart_frame = tk.Frame(root, bg=root["bg"], bd=1)
