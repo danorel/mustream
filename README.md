@@ -35,7 +35,13 @@ pip install -r requirements.txt
 
 ## Usage
 
-The project provides two main applications:
+Before moving on, let's setup Python project folder:
+
+```
+export PYTHONPATH=.
+```
+
+The project provides three main applications:
 
 ### Note Detector
 

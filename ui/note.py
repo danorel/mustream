@@ -4,6 +4,9 @@ import aubio
 import numpy as np
 import pyaudio
 
+from tools.noise_cancellation import bandpass_filter, dynamic_noise_gate
+from tools.note import freq_to_note
+
 # ----- Constants -----
 
 
@@ -12,32 +15,18 @@ SAMPLE_RATE = 44100
 FORMAT = pyaudio.paFloat32
 
 
-# ----- Tools: sound processing -----
-
-
-def freq_to_note(freq):
-    if freq <= 0:
-        return None
-    A4 = 440.0
-    semitones = int(round(12 * np.log2(freq / A4)))
-    note_index = (semitones + 9) % 12
-    octave = 4 + ((semitones + 9) // 12)
-    notes = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
-    return f"{notes[note_index]}{octave}"
-
-
 # ----- GUI -----
 
 
 root = tk.Tk()
-root.title("🎵 Real-Time Note Detector")
+root.title("🎵 Note Detector")
 root.geometry("300x200")
 
 note_var = tk.StringVar()
 freq_var = tk.StringVar()
 conf_var = tk.StringVar()
 
-tk.Label(root, text="Detected Note", font=("Helvetica", 16)).pack(pady=10)
+tk.Label(root, text="Detected note", font=("Helvetica", 16)).pack(pady=10)
 tk.Label(root, textvariable=note_var, font=("Helvetica", 32, "bold")).pack()
 
 tk.Label(root, textvariable=freq_var, font=("Helvetica", 12)).pack()
@@ -67,18 +56,32 @@ def update_pitch():
     audio_data = np.frombuffer(
         stream.read(BUFFER_SIZE, exception_on_overflow=False), dtype=np.float32
     )
-    pitch = pitch_detector(audio_data)[0]
-    confidence = pitch_detector.get_confidence()
 
-    note = freq_to_note(pitch)
+    audio_data = bandpass_filter(audio_data, lowcut=80.0, highcut=1200.0)
+    audio_data = audio_data.astype(np.float32)
+
+    threshold_conf = pitch_detector.get_confidence()
+    if threshold_conf > 0.85:
+        threshold_gate = -60  # more permissive
+    else:
+        threshold_gate = -40  # stricter
+
+    audio_data = dynamic_noise_gate(audio_data, threshold_db=threshold_gate)
+    audio_data = audio_data.astype(np.float32)
+
+    freq = pitch_detector(audio_data)[0]
+    conf = pitch_detector.get_confidence()
+    conf = max(0.0, min(conf, 1.0))
+
+    note = freq_to_note(freq)
 
     if note:
         note_var.set(note)
-        freq_var.set(f"Freq: {pitch:.1f} Hz")
-        conf_var.set(f"Confidence: {confidence:.2f}")
+        freq_var.set(f"Frequency: {freq:.1f} Hz")
+        conf_var.set(f"Confidence: {conf:.2f}")
     else:
         note_var.set("—")
-        freq_var.set("Freq: —")
+        freq_var.set("Frequency: —")
         conf_var.set("Confidence: —")
 
     root.after(50, update_pitch)
