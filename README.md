@@ -39,8 +39,6 @@ The project provides two main applications:
 
 ### Note Detector
 
-Run the note detection application:
-
 ```bash
 python ui/note.py
 ```
@@ -50,8 +48,6 @@ This will open a window showing:
 - Detected note
 
 ### Chord Detector
-
-Run the chord detection application:
 
 ```bash
 python ui/chord.py
@@ -64,8 +60,6 @@ This will open a window showing:
 - Live audio waveform visualization
 
 ### Jam
-
-Run the jam application:
 
 ```bash
 python ui/jam.py
