@@ -3,9 +3,10 @@ import tkinter as tk
 import aubio
 import numpy as np
 import pyaudio
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.figure import Figure
 
-from tools.noise_cancellation import bandpass_filter, dynamic_noise_gate
-from tools.note import freq_to_note
+from library.note import freq_to_note
 
 # ----- Constants -----
 
@@ -19,8 +20,8 @@ FORMAT = pyaudio.paFloat32
 
 
 root = tk.Tk()
-root.title("🎵 Note Detector")
-root.geometry("300x200")
+root.title("🎵 Decibel Meter")
+root.geometry("520x400")
 
 note_var = tk.StringVar()
 freq_var = tk.StringVar()
@@ -28,9 +29,35 @@ conf_var = tk.StringVar()
 
 tk.Label(root, text="Detected note", font=("Helvetica", 16)).pack(pady=10)
 tk.Label(root, textvariable=note_var, font=("Helvetica", 32, "bold")).pack()
-
 tk.Label(root, textvariable=freq_var, font=("Helvetica", 12)).pack()
 tk.Label(root, textvariable=conf_var, font=("Helvetica", 10)).pack()
+
+
+# ----- GUI: volume plot -----
+
+
+chart_frame = tk.Frame(root, bg=root["bg"], bd=1)
+chart_frame.pack(pady=10)
+
+fig = Figure(figsize=(5, 2), dpi=100)
+fig.patch.set_alpha(0.0)
+ax = fig.add_subplot(111)
+ax.set_facecolor((0, 0, 0, 0))
+
+bar = ax.bar([""], [-100], color="#4CAF50", width=0.4)
+ax.set_ylim(-120, 0)
+ax.set_yticks([-120, -100, -80, -60, -40, -20, 0])
+ax.set_yticklabels(["-120", "-100", "-80", "-60", "-40", "-20", "0"], fontsize=8)
+ax.set_xticks([])
+ax.set_ylabel("dB")
+ax.set_title("Volume level", fontsize=10, pad=5)
+ax.grid(True, axis="y", linestyle="--", linewidth=0.5, alpha=0.5)
+fig.tight_layout()
+fig.subplots_adjust(right=0.88)
+
+canvas = FigureCanvasTkAgg(fig, master=chart_frame)
+canvas.get_tk_widget().configure(bg=root["bg"], highlightthickness=0, bd=0)
+canvas.get_tk_widget().pack(anchor="center")
 
 
 # ----- Streaming: setup -----
@@ -44,12 +71,21 @@ stream = p.open(
     input=True,
     frames_per_buffer=BUFFER_SIZE,
 )
+
 pitch_detector = aubio.pitch("default", BUFFER_SIZE * 2, BUFFER_SIZE, SAMPLE_RATE)
 pitch_detector.set_unit("Hz")
-pitch_detector.set_silence(-40)
 
 
-# ----- Streaming: loop -----
+# ----- Tools: decibel conversion -----
+
+
+def rms_to_db(audio_data):
+    rms = np.sqrt(np.mean(audio_data**2))
+    db = 20 * np.log10(rms + 1e-10)
+    return db
+
+
+# ----- Main Loop -----
 
 
 def update_pitch():
@@ -57,22 +93,8 @@ def update_pitch():
         stream.read(BUFFER_SIZE, exception_on_overflow=False), dtype=np.float32
     )
 
-    audio_data = bandpass_filter(audio_data, lowcut=80.0, highcut=1200.0)
-    audio_data = audio_data.astype(np.float32)
-
-    threshold_conf = pitch_detector.get_confidence()
-    if threshold_conf > 0.85:
-        threshold_gate = -60  # more permissive
-    else:
-        threshold_gate = -40  # stricter
-
-    audio_data = dynamic_noise_gate(audio_data, threshold_db=threshold_gate)
-    audio_data = audio_data.astype(np.float32)
-
     freq = pitch_detector(audio_data)[0]
     conf = pitch_detector.get_confidence()
-    conf = max(0.0, min(conf, 1.0))
-
     note = freq_to_note(freq)
 
     if note:
@@ -83,6 +105,10 @@ def update_pitch():
         note_var.set("—")
         freq_var.set("Frequency: —")
         conf_var.set("Confidence: —")
+
+    db = rms_to_db(audio_data)
+    bar[0].set_height(db)
+    canvas.draw()
 
     root.after(50, update_pitch)
 

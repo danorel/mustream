@@ -41,12 +41,23 @@ Before moving on, let's setup Python project folder:
 export PYTHONPATH=.
 ```
 
-The project provides three main applications:
+The project provides set of musical applications:
+
+### Decibel Meter
+
+```bash
+python tools/decibel_meter.py
+```
+
+This will open a window showing:
+- Frequency of sound
+- Detected note
+- Live decibel visualization
 
 ### Note Detector
 
 ```bash
-python ui/note.py
+python tools/note.py
 ```
 
 This will open a window showing:
@@ -56,7 +67,7 @@ This will open a window showing:
 ### Chord Detector
 
 ```bash
-python ui/chord.py
+python tools/chord.py
 ```
 
 This will open a window showing:
@@ -68,7 +79,7 @@ This will open a window showing:
 ### Jam
 
 ```bash
-python ui/jam.py
+python tools/jam.py
 ```
 
 This will open a window showing:

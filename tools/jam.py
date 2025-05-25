@@ -4,12 +4,13 @@ from tkinter import ttk
 
 import numpy as np
 import pyaudio
+import pygame
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 
-from tools.chord import notes_to_chord
-from tools.noise_cancellation import bandpass_filter, dynamic_noise_gate
-from tools.note import freq_to_note
+from library.chord import notes_to_chord
+from library.noise_cancellation import bandpass_filter, dynamic_noise_gate
+from library.note import freq_to_note
 
 # ----- Constants -----
 
@@ -18,20 +19,33 @@ BUFFER_SIZE = 8192
 SAMPLE_RATE = 44100
 FORMAT = pyaudio.paFloat32
 
-PLOT_UPDATE_LAST_TIMESTAMP = 0  # throttle control (timestamp)
-PLOT_UPDATE_INTERVAL = 0.5  # plot control (in seconds)
+PLOT_UPDATE_LAST_TIMESTAMP = 0
+PLOT_UPDATE_INTERVAL = 0.5
+
+
+# ----- Tracks: store -----
+
+
+pygame.mixer.init()
+
+TRACKS_FOLDER = "tracks"
+
+TRACKS_TO_WAV = {
+    "Jazz Style": f"{TRACKS_FOLDER}/backing_jazz.wav",
+}
 
 
 # ----- GUI -----
 
 
 root = tk.Tk()
-root.title("🎵 Chord Detector")
-root.geometry("480x440")
+root.title("🎵 Jamming")
+root.geometry("720x540")
 
 chord_var = tk.StringVar()
 notes_var = tk.StringVar()
 freqs_var = tk.StringVar()
+status_var = tk.StringVar(value="Backing track stopped")
 
 
 # ----- GUI: chord display -----
@@ -44,7 +58,7 @@ tk.Label(
     chord_frame, text="Detected chord", font=("Helvetica", 16), bg=root["bg"]
 ).pack(pady=5)
 tk.Label(
-    chord_frame, textvariable=chord_var, font=("Helvetica", 24, "bold"), bg=root["bg"]
+    chord_frame, textvariable=chord_var, font=("Helvetica", 28, "bold"), bg=root["bg"]
 ).pack()
 tk.Label(chord_frame, textvariable=notes_var, bg=root["bg"]).pack()
 tk.Label(chord_frame, textvariable=freqs_var, bg=root["bg"]).pack()
@@ -53,8 +67,73 @@ tk.Label(chord_frame, textvariable=freqs_var, bg=root["bg"]).pack()
 # ----- GUI: separator -----
 
 
-separator = ttk.Separator(root, orient="horizontal")
-separator.pack(fill="x", pady=10)
+ttk.Separator(root, orient="horizontal").pack(fill="x", pady=10)
+
+
+# ----- GUI: controls -----
+
+
+def play_track():
+    track_name = style_var.get()
+    track_path = TRACKS_TO_WAV.get(track_name)
+    if track_path:
+        pygame.mixer.music.load(track_path)
+        pygame.mixer.music.play()
+        status_var.set(f"Playing: {track_name}")
+    else:
+        status_var.set("Track not found")
+
+
+def pause_track():
+    if pygame.mixer.music.get_busy():
+        pygame.mixer.music.pause()
+        status_var.set("Playback paused")
+
+
+def unpause_track():
+    if not pygame.mixer.music.get_busy():
+        pygame.mixer.music.unpause()
+        status_var.set("Playback resumed")
+
+
+def stop_track():
+    pygame.mixer.music.stop()
+    status_var.set("Backing track stopped")
+
+
+controls_frame = tk.Frame(root, bg=root["bg"])
+controls_frame.pack(pady=10)
+
+tk.Label(controls_frame, text="Select Style:", bg=root["bg"]).grid(
+    row=0, column=0, padx=5
+)
+style_var = tk.StringVar(value="Jazz Style")
+style_menu = ttk.Combobox(
+    controls_frame,
+    textvariable=style_var,
+    values=list(TRACKS_TO_WAV.keys()),
+    state="readonly",
+)
+style_menu.grid(row=0, column=1, padx=5)
+
+tk.Button(controls_frame, text="Play", command=play_track).grid(row=0, column=2, padx=5)
+tk.Button(controls_frame, text="Pause", command=pause_track).grid(
+    row=0, column=3, padx=5
+)
+tk.Button(controls_frame, text="Resume", command=unpause_track).grid(
+    row=0, column=4, padx=5
+)
+tk.Button(controls_frame, text="Stop", command=stop_track).grid(row=0, column=5, padx=5)
+
+tk.Label(controls_frame, textvariable=status_var, bg=root["bg"]).grid(
+    row=1, column=0, columnspan=6, pady=5
+)
+
+
+# ----- GUI: separator -----
+
+
+ttk.Separator(root, orient="horizontal").pack(fill="x", pady=10)
 
 
 # ----- GUI: audio waveform display -----
@@ -67,7 +146,7 @@ tk.Label(
     chart_frame, text="Audio waveform", font=("Helvetica", 16), bg=root["bg"]
 ).pack()
 
-fig = Figure(figsize=(5, 2), dpi=100)
+fig = Figure(figsize=(6, 2.5), dpi=100)
 fig.patch.set_alpha(0.0)
 ax = fig.add_subplot(111)
 ax.set_facecolor((0, 0, 0, 0))
