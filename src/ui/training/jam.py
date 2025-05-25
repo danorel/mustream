@@ -1,6 +1,6 @@
 """Training tool: jamming with backing music."""
 
-import time
+import os
 import tkinter as tk
 from tkinter import ttk
 
@@ -21,20 +21,25 @@ BUFFER_SIZE = 8192
 SAMPLE_RATE = 44100
 FORMAT = pyaudio.paFloat32
 
-PLOT_UPDATE_LAST_TIMESTAMP = 0
-PLOT_UPDATE_INTERVAL = 0.5
-
 
 # ----- Tracks: store -----
 
 
 pygame.mixer.init()
 
-TRACKS_FOLDER = "tracks"
-
-TRACKS_TO_WAV = {
-    "Jazz Style": f"{TRACKS_FOLDER}/backing_jazz.wav",
+MUSIC_FOLDER = "data"
+STYLE_FOLDER = "styles"
+STYLE_TYPE_TO_NAME = {
+    "jazz": "Jazz style",
+    "blues": "Blues style",
+    "rock": "Rock style",
+    "pop": "Pop style",
+    "country": "Country style",
+    "folk": "Folk style",
+    "latin": "Latin style",
+    "reggae": "Reggae style",
 }
+STYLE_NAME_TO_TYPE = {v: k for k, v in STYLE_TYPE_TO_NAME.items()}
 
 
 # ----- GUI -----
@@ -42,7 +47,7 @@ TRACKS_TO_WAV = {
 
 root = tk.Tk()
 root.title("🎵 Jamming")
-root.geometry("720x540")
+root.geometry("700x620")
 
 chord_var = tk.StringVar()
 notes_var = tk.StringVar()
@@ -69,17 +74,20 @@ tk.Label(chord_frame, textvariable=freqs_var, bg=root["bg"]).pack()
 # ----- GUI: separator -----
 
 
-ttk.Separator(root, orient="horizontal").pack(fill="x", pady=10)
+ttk.Separator(root, orient="horizontal").pack(fill="x", pady=(20, 10))
 
 
 # ----- GUI: controls -----
 
 
 def play_track():
-    track_name = style_var.get()
-    track_path = TRACKS_TO_WAV.get(track_name)
-    if track_path:
-        pygame.mixer.music.load(track_path)
+    track_name = track_var.get()
+    style_name = style_var.get()
+    style_type = STYLE_NAME_TO_TYPE.get(style_name)
+    if style_type and track_name:
+        pygame.mixer.music.load(
+            os.path.join(MUSIC_FOLDER, STYLE_FOLDER, style_type, track_name)
+        )
         pygame.mixer.music.play()
         status_var.set(f"Playing: {track_name}")
     else:
@@ -103,32 +111,66 @@ def stop_track():
     status_var.set("Backing track stopped")
 
 
+def update_track(*args):
+    style_name = style_var.get()
+    style_type = STYLE_NAME_TO_TYPE.get(style_name)
+    style_folder = (
+        os.path.join(MUSIC_FOLDER, STYLE_FOLDER, style_type) if style_type else None
+    )
+    if not style_folder or not os.path.exists(style_folder):
+        track_menu["values"] = []
+        track_var.set("")
+        return
+    tracks = [
+        file for file in os.listdir(style_folder) if file.endswith((".mp3", ".wav"))
+    ]
+    track_menu["values"] = tracks
+    if tracks:
+        track_var.set(tracks[0])
+    else:
+        track_var.set("")
+
+
 controls_frame = tk.Frame(root, bg=root["bg"])
 controls_frame.pack(pady=10)
 
-tk.Label(controls_frame, text="Select Style:", bg=root["bg"]).grid(
-    row=0, column=0, padx=5
+tk.Label(controls_frame, text="Select style:", bg=root["bg"]).grid(
+    row=0, column=0, padx=5, pady=5
 )
-style_var = tk.StringVar(value="Jazz Style")
+style_var = tk.StringVar(value="Jazz style")
+style_var.trace("w", update_track)
 style_menu = ttk.Combobox(
     controls_frame,
     textvariable=style_var,
-    values=list(TRACKS_TO_WAV.keys()),
+    values=list(STYLE_TYPE_TO_NAME.values()),
     state="readonly",
 )
 style_menu.grid(row=0, column=1, padx=5)
 
-tk.Button(controls_frame, text="Play", command=play_track).grid(row=0, column=2, padx=5)
+tk.Label(controls_frame, text="Select track:", bg=root["bg"]).grid(
+    row=1, column=0, padx=5, pady=5
+)
+track_var = tk.StringVar(value="")
+track_menu = ttk.Combobox(
+    controls_frame,
+    textvariable=track_var,
+    state="readonly",
+)
+track_menu.grid(row=1, column=1, padx=5)
+
+update_track()
+
+tk.Button(controls_frame, text="Play", command=play_track).grid(row=2, column=0, padx=5)
 tk.Button(controls_frame, text="Pause", command=pause_track).grid(
-    row=0, column=3, padx=5
+    row=2, column=1, padx=5
 )
 tk.Button(controls_frame, text="Resume", command=unpause_track).grid(
-    row=0, column=4, padx=5
+    row=2, column=2, padx=5
 )
-tk.Button(controls_frame, text="Stop", command=stop_track).grid(row=0, column=5, padx=5)
+tk.Button(controls_frame, text="Stop", command=stop_track).grid(row=2, column=3, padx=5)
 
 tk.Label(controls_frame, textvariable=status_var, bg=root["bg"]).grid(
-    row=1, column=0, columnspan=6, pady=5
+    row=3, column=0, columnspan=4, pady=5
 )
 
 
@@ -175,14 +217,12 @@ stream = p.open(
 
 
 def update_pitch():
-    global PLOT_UPDATE_LAST_TIMESTAMP
-    current_timestamp = time.time()
-
     audio_data = np.frombuffer(
         stream.read(BUFFER_SIZE, exception_on_overflow=False), dtype=np.float32
     )
     audio_data = bandpass_filter(audio_data, lowcut=80.0, highcut=1200.0)
     audio_data = dynamic_noise_gate(audio_data, threshold_db=-40)
+    audio_data = np.ascontiguousarray(audio_data, dtype=np.float32)
 
     spectrum = np.fft.fft(audio_data)
     freqs = np.fft.fftfreq(len(spectrum), 1 / SAMPLE_RATE)
@@ -209,12 +249,10 @@ def update_pitch():
         f"Top frequencies: {', '.join(f'{freq:.1f}' for freq in dominant_freqs)}"
     )
 
-    if current_timestamp - PLOT_UPDATE_LAST_TIMESTAMP >= PLOT_UPDATE_INTERVAL:
-        ax.clear()
-        ax.plot(audio_data)
-        ax.set_ylim(-0.5, 0.5)
-        canvas.draw()
-        PLOT_UPDATE_LAST_TIMESTAMP = current_timestamp
+    ax.clear()
+    ax.plot(audio_data)
+    ax.set_ylim(-0.5, 0.5)
+    canvas.draw()
 
     root.after(ms=50, func=update_pitch)
 

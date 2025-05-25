@@ -1,6 +1,7 @@
 """Detection tool: chord detector supporting monophonic voice or instrument playing multiple dominant tones or harmonics."""
 
 import tkinter as tk
+from collections import Counter, deque
 from tkinter import ttk
 
 import aubio
@@ -20,6 +21,8 @@ BUFFER_SIZE = 8192
 SAMPLE_RATE = 44100
 FORMAT = pyaudio.paFloat32
 
+TOP_FREQS = 6
+
 
 # ----- GUI -----
 
@@ -35,6 +38,7 @@ freqs_var = tk.StringVar()
 
 # ----- GUI: chord display -----
 
+chord_history = deque(maxlen=5)
 
 chord_frame = tk.Frame(root, bg=root["bg"])
 chord_frame.pack(pady=10)
@@ -102,26 +106,36 @@ def update_pitch():
     audio_data = dynamic_noise_gate(audio_data, threshold_db=-40)
     audio_data = np.ascontiguousarray(audio_data, dtype=np.float32)
 
-    spectrum = np.fft.fft(audio_data)
+    windowed_audio_data = audio_data * np.hanning(len(audio_data))
+
+    spectrum = np.fft.fft(windowed_audio_data)
     freqs = np.fft.fftfreq(len(spectrum), 1 / SAMPLE_RATE)
     magnitude = np.abs(spectrum)
 
     idx = np.where((freqs > 60) & (freqs < 1200))
     magnitude = magnitude[idx]
 
-    top_indices = np.argsort(magnitude)[-6:]
+    top_indices = np.argsort(magnitude)[-TOP_FREQS:]
+    top_indices = np.sort(top_indices)
     dominant_freqs = freqs[idx][top_indices]
     dominant_freqs.sort()
 
     notes = []
-    for freq in dominant_freqs:
+    for freq in sorted(dominant_freqs):
         note = freq_to_note(freq)
         if note and note[:-1] not in [n[:-1] for n in notes]:
             notes.append(note)
+        if len(notes) == TOP_FREQS:
+            break
 
     detected_chord = notes_to_chord(notes)
+    if detected_chord:
+        chord_history.append(detected_chord)
+        most_common_chord = Counter(chord_history).most_common(1)[0][0]
+        chord_var.set(most_common_chord)
+    else:
+        chord_var.set("Unknown")
 
-    chord_var.set(detected_chord if detected_chord else "Unknown")
     notes_var.set(f"Notes: {', '.join(notes)}")
     freqs_var.set(
         f"Top frequencies: {', '.join(f'{freq:.1f}' for freq in dominant_freqs)}"
@@ -132,7 +146,7 @@ def update_pitch():
     ax.set_ylim(-0.5, 0.5)
     canvas.draw()
 
-    root.after(ms=50, func=update_pitch)
+    root.after(ms=250, func=update_pitch)
 
 
 if __name__ == "__main__":
