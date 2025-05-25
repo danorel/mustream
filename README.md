@@ -81,7 +81,7 @@ This will open a window showing:
 Note detection tool, which supports monophonic voice or instrument playing single dominant tone.
 
 ```bash
-python src/ui/concept/note.py
+python src/ui/tool/detector/note.py
 ```
 
 This will open a window showing:
@@ -94,7 +94,7 @@ This will open a window showing:
 Chord detection tool, which supports monophonic voice or instrument playing multiple dominant tones or harmonics.
 
 ```bash
-python src/ui/concept/chord.py
+python src/ui/tool/detector/chord.py
 ```
 
 This will open a window showing:
@@ -112,7 +112,7 @@ This will open a window showing:
 Jamming with backing jazz music.
 
 ```bash
-python src/ui/music/jam.py
+python src/ui/training/jam.py
 ```
 
 This will open a window showing:
