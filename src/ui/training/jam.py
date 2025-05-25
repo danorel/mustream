@@ -1,3 +1,5 @@
+"""Training tool: jamming with backing music."""
+
 import time
 import tkinter as tk
 from tkinter import ttk
@@ -8,9 +10,9 @@ import pygame
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 
-from library.chord import notes_to_chord
-from library.noise_cancellation import bandpass_filter, dynamic_noise_gate
-from library.note import freq_to_note
+from src.core.theory.chord import notes_to_chord
+from src.core.theory.note import freq_to_note
+from src.core.tune.noise_cancellation import bandpass_filter, dynamic_noise_gate
 
 # ----- Constants -----
 
@@ -214,7 +216,7 @@ def update_pitch():
         canvas.draw()
         PLOT_UPDATE_LAST_TIMESTAMP = current_timestamp
 
-    root.after(200, update_pitch)
+    root.after(ms=50, func=update_pitch)
 
 
 if __name__ == "__main__":

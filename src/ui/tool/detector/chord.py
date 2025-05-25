@@ -1,15 +1,17 @@
-import time
+"""Detection tool: chord detector supporting monophonic voice or instrument playing multiple dominant tones or harmonics."""
+
 import tkinter as tk
 from tkinter import ttk
 
+import aubio
 import numpy as np
 import pyaudio
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 
-from library.chord import notes_to_chord
-from library.noise_cancellation import bandpass_filter, dynamic_noise_gate
-from library.note import freq_to_note
+from src.core.theory.chord import notes_to_chord
+from src.core.theory.note import freq_to_note
+from src.core.tune.noise_cancellation import bandpass_filter, dynamic_noise_gate
 
 # ----- Constants -----
 
@@ -18,15 +20,12 @@ BUFFER_SIZE = 8192
 SAMPLE_RATE = 44100
 FORMAT = pyaudio.paFloat32
 
-PLOT_UPDATE_LAST_TIMESTAMP = 0  # throttle control (timestamp)
-PLOT_UPDATE_INTERVAL = 0.5  # plot control (in seconds)
-
 
 # ----- GUI -----
 
 
 root = tk.Tk()
-root.title("🎵 Chord Detector")
+root.title("🎵 Chord detector")
 root.geometry("480x440")
 
 chord_var = tk.StringVar()
@@ -88,20 +87,20 @@ stream = p.open(
     input=True,
     frames_per_buffer=BUFFER_SIZE,
 )
+pitch_detector = aubio.pitch("default", BUFFER_SIZE * 2, BUFFER_SIZE, SAMPLE_RATE)
+pitch_detector.set_unit("Hz")
 
 
 # ----- Streaming: loop -----
 
 
 def update_pitch():
-    global PLOT_UPDATE_LAST_TIMESTAMP
-    current_timestamp = time.time()
-
     audio_data = np.frombuffer(
         stream.read(BUFFER_SIZE, exception_on_overflow=False), dtype=np.float32
     )
     audio_data = bandpass_filter(audio_data, lowcut=80.0, highcut=1200.0)
     audio_data = dynamic_noise_gate(audio_data, threshold_db=-40)
+    audio_data = np.ascontiguousarray(audio_data, dtype=np.float32)
 
     spectrum = np.fft.fft(audio_data)
     freqs = np.fft.fftfreq(len(spectrum), 1 / SAMPLE_RATE)
@@ -128,14 +127,12 @@ def update_pitch():
         f"Top frequencies: {', '.join(f'{freq:.1f}' for freq in dominant_freqs)}"
     )
 
-    if current_timestamp - PLOT_UPDATE_LAST_TIMESTAMP >= PLOT_UPDATE_INTERVAL:
-        ax.clear()
-        ax.plot(audio_data)
-        ax.set_ylim(-0.5, 0.5)
-        canvas.draw()
-        PLOT_UPDATE_LAST_TIMESTAMP = current_timestamp
+    ax.clear()
+    ax.plot(audio_data)
+    ax.set_ylim(-0.5, 0.5)
+    canvas.draw()
 
-    root.after(200, update_pitch)
+    root.after(ms=50, func=update_pitch)
 
 
 if __name__ == "__main__":

@@ -1,11 +1,13 @@
+"""Detection tool: note detector supporting monophonic voice or instrument playing single dominant tone."""
+
 import tkinter as tk
 
 import aubio
 import numpy as np
 import pyaudio
 
-from library.noise_cancellation import bandpass_filter, dynamic_noise_gate
-from library.note import freq_to_note
+from src.core.theory.note import freq_to_note
+from src.core.tune.noise_cancellation import bandpass_filter, dynamic_noise_gate
 
 # ----- Constants -----
 
@@ -19,7 +21,7 @@ FORMAT = pyaudio.paFloat32
 
 
 root = tk.Tk()
-root.title("🎵 Note Detector")
+root.title("🎵 Note detector")
 root.geometry("300x200")
 
 note_var = tk.StringVar()
@@ -56,8 +58,9 @@ def update_pitch():
     )
     audio_data = bandpass_filter(audio_data, lowcut=80.0, highcut=1200.0)
     audio_data = dynamic_noise_gate(audio_data, threshold_db=-40)
+    audio_data = np.ascontiguousarray(audio_data, dtype=np.float32)
 
-    freq = pitch_detector(audio_data.astype(np.float32))[0]
+    freq = pitch_detector(audio_data)[0]
     conf = pitch_detector.get_confidence()
     conf = max(0.0, min(conf, 1.0))
 
@@ -72,7 +75,7 @@ def update_pitch():
         freq_var.set("Frequency: —")
         conf_var.set("Confidence: —")
 
-    root.after(50, update_pitch)
+    root.after(ms=50, func=update_pitch)
 
 
 update_pitch()

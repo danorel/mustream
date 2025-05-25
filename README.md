@@ -1,15 +1,21 @@
 # mustream
 
-**Toolbox for tech guys who are into guitar music**
 
-This project provides real-time tools for detecting musical notes and chords through your microphone, with a simple UI for visualization. Perfect for musicians, music students, and developers interested in audio processing.
+**Toolbox for tech guys who are into music and more**
+
+This project provides real-time tools for learning musical theory with accompanying visualization plugins through your microphone with set of simple UI applications. Perfect for musicians, music students, and developers interested in audio understanding and processing.
+
 
 ## Features
 
-- 🎵 Real-time **note recognition** and **chord detection**
-- 📊 Live **audio waveform plotting** for visual feedback
+
+- 📏 Measurement tools: **decibel meter**
+- 🎵 Real-time detection tools: **note recognition** and **chord detection**
+- 📊 Training tools: live **jamming** with backing music
+
 
 ## Requirements
+
 
 - Python 3.7 or higher
 - PyAudio (for audio input)
@@ -18,9 +24,12 @@ This project provides real-time tools for detecting musical notes and chords thr
 - Aubio (for pitch detection)
 - SciPy (for signal processing)
 
+
 ## Installation
 
+
 1. Clone the repository:
+
 ```bash
 git clone https://github.com/danorel/mustream.git
 cd mustream
@@ -29,24 +38,33 @@ cd mustream
 2. Create and activate a virtual environment (recommended)
 
 3. Install the required packages:
+
 ```bash
 pip install -r requirements.txt
 ```
 
+
 ## Usage
+
 
 Before moving on, let's setup Python project folder:
 
-```
+```commandline
 export PYTHONPATH=.
 ```
 
 The project provides set of musical applications:
 
-### Decibel Meter
+
+### Measurement tools
+
+
+#### Decibel meter
+
+Decibel meter tool, which supports monophonic voice or instrument, analysing sound level.
 
 ```bash
-python tools/decibel_meter.py
+python src/ui/tool/measurer/decibel_meter.py
 ```
 
 This will open a window showing:
@@ -54,20 +72,29 @@ This will open a window showing:
 - Detected note
 - Live decibel visualization
 
-### Note Detector
+
+### Detection tools
+
+
+#### Note detector
+
+Note detection tool, which supports monophonic voice or instrument playing single dominant tone.
 
 ```bash
-python tools/note.py
+python src/ui/concept/note.py
 ```
 
 This will open a window showing:
 - Frequency of sound
 - Detected note
 
-### Chord Detector
+
+#### Chord detector
+
+Chord detection tool, which supports monophonic voice or instrument playing multiple dominant tones or harmonics.
 
 ```bash
-python tools/chord.py
+python src/ui/concept/chord.py
 ```
 
 This will open a window showing:
@@ -76,10 +103,16 @@ This will open a window showing:
 - Individual notes being played
 - Live audio waveform visualization
 
-### Jam
+
+### Training tools
+
+
+#### Jam
+
+Jamming with backing jazz music.
 
 ```bash
-python tools/jam.py
+python src/ui/music/jam.py
 ```
 
 This will open a window showing:
@@ -90,7 +123,9 @@ This will open a window showing:
 - Music library
 - Jam controls
 
+
 ## Development
+
 
 The project uses several development tools to maintain code quality:
 - `black` for code formatting
@@ -105,6 +140,8 @@ pip install pre-commit
 pre-commit install
 ```
 
+
 ## Contributing
+
 
 Contributions and feature proposals are welcome! Please feel free to submit a PR.

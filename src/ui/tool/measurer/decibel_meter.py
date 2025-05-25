@@ -1,3 +1,5 @@
+"""Measurement tool: decibel meter supporting monophonic voice or instrument."""
+
 import tkinter as tk
 
 import aubio
@@ -6,7 +8,7 @@ import pyaudio
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 
-from library.note import freq_to_note
+from src.core.theory.note import freq_to_note
 
 # ----- Constants -----
 
@@ -71,7 +73,6 @@ stream = p.open(
     input=True,
     frames_per_buffer=BUFFER_SIZE,
 )
-
 pitch_detector = aubio.pitch("default", BUFFER_SIZE * 2, BUFFER_SIZE, SAMPLE_RATE)
 pitch_detector.set_unit("Hz")
 
@@ -92,6 +93,7 @@ def update_pitch():
     audio_data = np.frombuffer(
         stream.read(BUFFER_SIZE, exception_on_overflow=False), dtype=np.float32
     )
+    audio_data = np.ascontiguousarray(audio_data, dtype=np.float32)
 
     freq = pitch_detector(audio_data)[0]
     conf = pitch_detector.get_confidence()
@@ -110,7 +112,7 @@ def update_pitch():
     bar[0].set_height(db)
     canvas.draw()
 
-    root.after(50, update_pitch)
+    root.after(ms=50, func=update_pitch)
 
 
 update_pitch()
